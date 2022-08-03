@@ -1,0 +1,6 @@
+code/TallyLight/.pio
+code/TallyLight/.vscode/.browse.c_cpp.db*
+code/TallyLight/.vscode/c_cpp_properties.json
+code/TallyLight/.vscode/launch.json
+code/TallyLight/.vscode/ipch
+*.FCStd1

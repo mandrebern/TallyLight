@@ -1,0 +1,87 @@
+<html>
+    <header>
+        <title>TallyLight - Configuration</title>
+        <script src="jquery.js"></script>
+        <script src="config.js"></script>
+        <link rel="stylesheet" href="skeleton.css">
+        <style>
+            .container {
+                width: 100%;
+            }
+        </style>
+    </header>
+    <body onload="init();">
+        <div class="container">
+            <div class="row">
+                <div class="twelve columns">
+                    <h2>State</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="six columns">
+                    <div class="row">
+                        <div class="five columns">
+                            Battery voltage:
+                        </div>
+                        <div class="seven columns">
+                            <span id="battery-voltage"></span> V
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="six columns">
+                    <div class="row">
+                        <div class="five columns">
+                            USB powered:
+                        </div>
+                        <div class="seven columns" id="usb-powered">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="twelve columns">
+                    <hr>
+                    <h2>Configuration</h2>
+                </div>
+            </div>
+            <div class="row">
+                <div class="six columns">
+                    <div class="row">
+                        <div class="five columns">
+                            VMix host:
+                        </div>
+                        <div class="seven columns">
+                            <input type="text" id="vmix-host" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="five columns">
+                            VMix port:
+                        </div>
+                        <div class="seven columns">
+                            <input type="number" id="vmix-port" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="five columns">
+                            Light index:
+                        </div>
+                        <div class="seven columns">
+                            <input type="number" id="light-index" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="two columns">
+                    <button onclick="save()">Save</button>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script>
+        
+    </script>
+</html>
