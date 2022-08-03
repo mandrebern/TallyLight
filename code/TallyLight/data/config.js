@@ -1,12 +1,14 @@
 function init() {
     loadSettings();
     loadState();
+    setInterval(loadState, 5000);
 }
 
 function loadState() {
     $.get( "/api/state", function( data ) {
         $( "#battery-voltage" ).text(data["batteryVoltage"].toFixed(2));
         $( "#usb-powered" ).text(data["usbPowered"] ? "yes" : "no");
+        $( "#wifi-rssi" ).text(data["wifiRssi"]);
     });
 }
 

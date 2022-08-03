@@ -82,9 +82,13 @@ CRGB colorWhite = CRGB(255, 255, 255);
 
 TaskHandle_t  displayTaskHnd;
 
-float readBatteryVoltage(){ 
+float readBatteryVoltage() { 
   return analogRead(35)/4096.0*7.445; 
-} 
+}
+
+int8_t readWifiRssi() {
+  return WiFi.RSSI();
+}
 
 bool isUSBPowered() {
   return digitalRead(VBUS_MON_PIN);
@@ -402,6 +406,7 @@ void configureRoutes(char* root) {
       DynamicJsonDocument doc(1000);
       doc["batteryVoltage"] = readBatteryVoltage();
       doc["usbPowered"] = isUSBPowered();
+      doc["wifiRssi"] = readWifiRssi();
       serializeJson(doc, *response);
       request->send(response);
     });
