@@ -1,3 +1,5 @@
+#define FASTLED_ESP32_I2S true // https://github.com/FastLED/FastLED/issues/1220
+
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>
@@ -83,7 +85,7 @@ CRGB colorWhite = CRGB(255, 255, 255);
 TaskHandle_t  displayTaskHnd;
 
 float readBatteryVoltage() { 
-  return analogRead(35)/4096.0*7.445; 
+  return analogRead(35)/4096.0*7.18529; 
 }
 
 int8_t readWifiRssi() {
@@ -128,27 +130,32 @@ void onData(void *arg, AsyncClient *client, void *data, size_t len)
 {
   vmixLastDataReceived = millis();
   String inData = String((char*)data).substring(0, len);
-	Serial.print("In : ");
-  Serial.println(inData);
+	//Serial.print("In : ");
+  //Serial.println(inData);
   dataBuffer += inData;
   int newLinePos = dataBuffer.indexOf("\n");
   while (newLinePos > -1) {
     String line = dataBuffer.substring(0, newLinePos);
     line.trim();
-    Serial.printf("Process line : %s\n", line.c_str());
+    //Serial.printf("Process line : %s\n", line.c_str());
     String matchString = VMIX_TALLY_OK;
     if (line.startsWith(matchString)) {
       if (line.length() <= matchString.length() + lightIndex) {
-        Serial.printf("Requested light index [%d] not found.\n", lightIndex);
+        //Serial.printf("Requested light index [%d] not found.\n", lightIndex);
       } else {
         byte newLightValue = String(line.charAt(matchString.length() + lightIndex)).toInt();
         if (lightValue != newLightValue) {
           lightValue = newLightValue;
-          Serial.printf("Light updated to: %d\n", lightValue);
+          //Serial.printf("Light updated to: %d\n", lightValue);
         }
       }
     }
-    dataBuffer = dataBuffer.substring(newLinePos + 1, -1);
+    if (dataBuffer.length() > newLinePos) {
+      dataBuffer = dataBuffer.substring(newLinePos + 1, -1);
+    } else {
+      dataBuffer = "";
+    }
+
     newLinePos = dataBuffer.indexOf("\n");
   }
 }
@@ -156,8 +163,8 @@ void onData(void *arg, AsyncClient *client, void *data, size_t len)
 bool vmixSend(String payload) {
   if (vmix->space() > strlen(payload.c_str()) && vmix->canSend())
 	{
-    Serial.print("Out: ");
-    Serial.println(payload);
+    //Serial.print("Out: ");
+    //Serial.println(payload);
 		vmix->add(payload.c_str(), strlen(payload.c_str()));
 		vmix->send();
     vmixLastDataRequested = millis();
@@ -178,7 +185,7 @@ void requestLightState() {
 
 void onConnect(void *arg, AsyncClient *client)
 {
-	Serial.printf("VMix client connected to %s:%d\n", vmixHost.c_str(), vmixPort);
+	//Serial.printf("VMix client connected to %s:%d\n", vmixHost.c_str(), vmixPort);
   vmixLastDataReceived = millis();
   state = STATE_CONNECTED;
   vmixSend(VMIX_TALLY_SUBSCRIBE);
@@ -289,7 +296,6 @@ void setLeds(CRGB* leds, CRGB color) {
   for (int i = 0; i < NUM_LEDS; i++) {
     setLed(leds + i, color);
   }
-  FastLED.show();
 }
 
 unsigned long nextFlashStateChange = 0;
@@ -322,7 +328,6 @@ void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec) {
       setLed(leds + i, colorBlack);
     }
   }
-  FastLED.show();
 }
 
 unsigned long nextLedUpdate = 0;
@@ -378,6 +383,7 @@ void updateLeds() {
       }
       break;
   }
+  FastLED.show();
 }
 
 void displayLoop( void * parameter) {
@@ -431,7 +437,7 @@ void configureRoutes(char* root) {
 }
 
 void configModeCallback(AsyncWiFiManager* wifiManager) {
-  Serial.println("Entered config mode");
+  //Serial.println("Entered config mode");
   state = STATE_WLAN_CONFIGURATION;
 }
 
@@ -451,9 +457,8 @@ void setup() {
   pinMode(VBUS_MON_PIN, INPUT);
 
   // Setup LED
-  //FastLED.addLeds<LED_TYPE, LED_PIN_FRONT, COLOR_ORDER>(ledsFront, NUM_LEDS);
+  FastLED.addLeds<LED_TYPE, LED_PIN_FRONT, COLOR_ORDER>(ledsFront, NUM_LEDS);
   FastLED.addLeds<LED_TYPE, LED_PIN_BACK, COLOR_ORDER>(ledsBack, NUM_LEDS);
-  setLeds(ledsBack, colorRed);
 
   // Setup EEPROM
   EEPROM.begin(EEPROM_SIZE);
