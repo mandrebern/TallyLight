@@ -81,11 +81,16 @@ CRGB colorGreen = CRGB(0, 255, 0);
 CRGB colorRed = CRGB(255, 0, 0);
 CRGB colorBlack = CRGB(0, 0, 0);
 CRGB colorWhite = CRGB(255, 255, 255);
+CRGB colorYellow = CRGB(255, 255, 0);
 
 TaskHandle_t  displayTaskHnd;
 
 float readBatteryVoltage() { 
-  return analogRead(35)/4096.0*7.18529; 
+  return analogRead(35)/4096.0*7.18529;
+}
+
+int getBatteryPercentage() {
+  return (readBatteryVoltage() - 2.7) / (4.2 - 2.7) * 100.0;
 }
 
 int8_t readWifiRssi() {
@@ -216,6 +221,11 @@ void handleButtonReleased() {
   }
 }
 
+void writeBrightnessToEeprom() {
+  EEPROM.writeByte(EEPROM_ADDRESS_BRIGHTNESS, brightness);
+  eepromCommitDueAt = millis() + 15000;
+}
+
 time_t lastButtonRead = 0;
 int lastButtonState = 0;
 time_t buttonPressedTime = 0;
@@ -254,8 +264,7 @@ void handleButton() {
         handleButtonReleased();
       } else {
         brightnessDirection *= -1;
-        EEPROM.writeByte(EEPROM_ADDRESS_BRIGHTNESS, brightness);
-        eepromCommitDueAt = millis() + 15000;
+        writeBrightnessToEeprom();
       }
     }
     lastButtonState = 0;
@@ -330,6 +339,29 @@ void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec) {
   }
 }
 
+void showBatteryState(CRGB* leds) {
+  if (nextFlashStateChange < millis()) {
+    flashOn = !flashOn;
+    nextFlashStateChange = millis() + 1000;
+  }
+  int percentage = getBatteryPercentage();
+  int flashingLed = min(percentage * NUM_LEDS / 100, NUM_LEDS);
+  for (int i = 0; i < NUM_LEDS; i++) {
+    if (i < flashingLed) {
+      setLed(leds + i, colorYellow);
+    } else if (i == flashingLed) {
+      if (flashOn) {
+        setLed(leds + i, colorYellow);
+      } else {
+        setLed(leds + i, colorBlack);
+      }
+    } else {
+        setLed(leds + i, colorBlack);
+    }
+  }
+}
+
+
 unsigned long nextLedUpdate = 0;
 
 void updateLeds() {
@@ -383,6 +415,9 @@ void updateLeds() {
       }
       break;
   }
+  if (millis() > 200 && isUSBPowered()) {
+    showBatteryState(ledsFront);
+  }
   FastLED.show();
 }
 
@@ -413,6 +448,7 @@ void configureRoutes(char* root) {
       doc["batteryVoltage"] = readBatteryVoltage();
       doc["usbPowered"] = isUSBPowered();
       doc["wifiRssi"] = readWifiRssi();
+      doc["brightness"] = brightness;
       serializeJson(doc, *response);
       request->send(response);
     });
@@ -434,6 +470,17 @@ void configureRoutes(char* root) {
       request->send(200, "application/json");
     }, 1000);
     server.addHandler(handler);
+
+    handler = new AsyncCallbackJsonWebHandler("/api/state", [](AsyncWebServerRequest *request, JsonVariant &json) {
+      JsonObject obj = json.as<JsonObject>();
+      if (obj.containsKey("brightness")) {
+        brightness = obj["brightness"];
+        writeBrightnessToEeprom();
+      }
+      state = STATE_NOT_CONNECTED;
+      request->send(200, "application/json");
+    }, 1000);
+    server.addHandler(handler);
 }
 
 void configModeCallback(AsyncWiFiManager* wifiManager) {
@@ -449,9 +496,6 @@ void setup() {
     return;
   }
 
-  // Setup display thread
-  xTaskCreatePinnedToCore(displayLoop, "DisplayTask", 10000, NULL, 1, &displayTaskHnd, 1);
-
   // Setup button
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(VBUS_MON_PIN, INPUT);
@@ -463,6 +507,9 @@ void setup() {
   // Setup EEPROM
   EEPROM.begin(EEPROM_SIZE);
   loadStateFromEeprom();
+
+  // Setup display thread
+  xTaskCreatePinnedToCore(displayLoop, "DisplayTask", 10000, NULL, 1, &displayTaskHnd, 1);
 
   // Setup WIFI
   wifiManager = new AsyncWiFiManager(&server, &dns);

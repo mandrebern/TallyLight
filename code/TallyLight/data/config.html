@@ -1,9 +1,12 @@
+<!DOCTYPE html>
 <html>
     <header>
         <title>TallyLight - Configuration</title>
         <script src="jquery.js"></script>
+        <script src="jquery-ui.min.js"></script>
         <script src="config.js"></script>
         <link rel="stylesheet" href="skeleton.css">
+        <link rel="stylesheet" href="jquery-ui.min.css">
         <style>
             .container {
                 width: 100%;
@@ -52,6 +55,14 @@
                 </div>
             </div>
             <div class="row">
+                <div class="five columns">
+                    Brightness:
+                </div>
+                <div class="seven columns">
+                    <div id="brightness" class="slider"></div>
+                </div>
+            </div>
+            <div class="row">
                 <div class="twelve columns">
                     <hr>
                     <h2>Configuration</h2>
@@ -93,6 +104,12 @@
         </div>
     </body>
     <script>
-        
+        $( function() {
+          $( ".slider" ).slider({
+            min: 0,
+            max: 255,
+            change:function() { sendState(); }
+          });
+        } );
     </script>
 </html>
