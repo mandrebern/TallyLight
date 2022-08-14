@@ -55,11 +55,15 @@
                 </div>
             </div>
             <div class="row">
-                <div class="five columns">
-                    Brightness:
-                </div>
-                <div class="seven columns">
-                    <div id="brightness" class="slider"></div>
+                <div class="six columns">
+                    <div class="row">
+                        <div class="five columns">
+                            Brightness:
+                        </div>
+                        <div class="seven columns" id="wifi-rssi">
+                            <div id="brightness" class="slider"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="row">
@@ -80,7 +84,7 @@
                     </div>
                     <div class="row">
                         <div class="five columns">
-                            VMix port:
+                            VMix port (default 8099):
                         </div>
                         <div class="seven columns">
                             <input type="number" id="vmix-port" />
@@ -88,10 +92,18 @@
                     </div>
                     <div class="row">
                         <div class="five columns">
-                            Light index:
+                            Channel id:
                         </div>
                         <div class="seven columns">
-                            <input type="number" id="light-index" />
+                            <input type="number" id="light-index" min="1" max="255" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="five columns">
+                            Show preview on front:
+                        </div>
+                        <div class="seven columns">
+                            <input type="checkbox" id="show-preview-on-front"/>
                         </div>
                     </div>
                 </div>
