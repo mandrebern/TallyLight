@@ -22,6 +22,7 @@ function loadSettings() {
         $( "#vmix-host" ).val(data["vmixHost"]);
         $( "#vmix-port" ).val(data["vmixPort"]);
         $( "#light-index" ).val(data["lightIndex"]);
+        $( "#show-preview-on-front" ).val(data["showPreviewOnFront"]);
     });
 }
 
@@ -29,7 +30,8 @@ function save() {
     const data = {
         vmixHost: $("#vmix-host").val(),
         vmixPort: parseInt($("#vmix-port").val()),
-        lightIndex: parseInt($("#light-index").val())
+        lightIndex: parseInt($("#light-index").val()),
+        showPreviewOnFront: $("#show-preview-on-front").is(":checked")
     };
     $.ajax({
         type: "POST",

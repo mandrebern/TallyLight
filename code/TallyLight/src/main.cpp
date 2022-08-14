@@ -54,6 +54,7 @@ byte lightIndex = 0;
 
 // Persistet state
 byte brightness = 255;
+bool showPreviewOnFront = false;
 
 // Temp state
 short brightnessDirection = 1;
@@ -119,6 +120,13 @@ void loadStateFromEeprom() {
     vmixHost = buffer;
   }
   Serial.println("Loaded from EEPROM");
+  if (vmixPort > 65535) {
+    Serial.println("Not yet initialized. Setting default values.");
+    vmixPort = 8099;
+    vmixHost = "";
+    lightIndex = 1;
+    brightness = 255;
+  }
   Serial.print("VMix Port: ");
   Serial.print(vmixHost);
   Serial.print(":");
@@ -145,10 +153,10 @@ void onData(void *arg, AsyncClient *client, void *data, size_t len)
     //Serial.printf("Process line : %s\n", line.c_str());
     String matchString = VMIX_TALLY_OK;
     if (line.startsWith(matchString)) {
-      if (line.length() <= matchString.length() + lightIndex) {
+      if (line.length() <= matchString.length() + (lightIndex - 1)) {
         //Serial.printf("Requested light index [%d] not found.\n", lightIndex);
       } else {
-        byte newLightValue = String(line.charAt(matchString.length() + lightIndex)).toInt();
+        byte newLightValue = String(line.charAt(matchString.length() + (lightIndex - 1))).toInt();
         if (lightValue != newLightValue) {
           lightValue = newLightValue;
           //Serial.printf("Light updated to: %d\n", lightValue);
@@ -399,14 +407,19 @@ void updateLeds() {
         case 0:
           setLeds(ledsFront, colorBlack);
           setLeds(ledsBack, colorBlack);
+          setLed(ledsBack, colorWhite);
           break;
         case 1:
-          setLeds(ledsFront, colorGreen);
-          setLeds(ledsBack, colorGreen);
-          break;
-        case 2:
           setLeds(ledsFront, colorRed);
           setLeds(ledsBack, colorRed);
+          break;
+        case 2:
+          if (showPreviewOnFront) {
+            setLeds(ledsFront, colorGreen);
+          } else {
+            setLeds(ledsFront, colorBlack);
+          }
+          setLeds(ledsBack, colorGreen);
           break;
         default:
           setLeds(ledsFront, colorBlack);
@@ -438,6 +451,7 @@ void configureRoutes(char* root) {
       doc["vmixHost"] = vmixHost;
       doc["vmixPort"] = vmixPort;
       doc["lightIndex"] = lightIndex;
+      doc["showPreviewOnFront"] = showPreviewOnFront;
       serializeJson(doc, *response);
       request->send(response);
     });
@@ -465,6 +479,10 @@ void configureRoutes(char* root) {
       if (obj.containsKey("lightIndex")) {
         lightIndex = obj["lightIndex"];
       }
+      if (obj.containsKey("showPreviewOnFront")) {
+        showPreviewOnFront = obj["showPreviewOnFront"];
+      }
+
       state = STATE_NOT_CONNECTED;
       writeStateToEeprom();
       request->send(200, "application/json");
