@@ -45,7 +45,13 @@
 #define VMIX_TALLY_SUBSCRIBE "SUBSCRIBE TALLY\n"
 #define VMIX_TALLY_OK "TALLY OK "
 
- void(* resetFunc) (void) = 0;//declare reset function at address 0
+void(* resetFunc) (void) = 0;//declare reset function at address 0
+
+struct LED_STATE {
+  unsigned long nextSwitch = 0;
+  boolean flashOn = false;
+  byte iterateCurrentLed = 0;
+};
 
 // Configuration
 String vmixHost;
@@ -62,6 +68,9 @@ time_t eepromCommitDueAt = 0;
 byte lightValue = 0;
 time_t preResetStartedAt = 0;
 int state = STATE_STARTUP;
+LED_STATE *ledStateFront = new LED_STATE();
+LED_STATE *ledStateBack = new LED_STATE();
+float smoothBatteryVoltage = 0;
 
 // Wifi
 AsyncWiFiManager* wifiManager;
@@ -86,8 +95,19 @@ CRGB colorYellow = CRGB(255, 255, 0);
 
 TaskHandle_t  displayTaskHnd;
 
-float readBatteryVoltage() { 
-  return analogRead(35)/4096.0*7.18529;
+unsigned long readBatteryVoltageDue = 0;
+
+float readBatteryVoltage() {
+  if (readBatteryVoltageDue < millis()) {
+    readBatteryVoltageDue = millis() + 1000;
+    float voltage = analogRead(35)/4096.0*7.18529;
+    if (smoothBatteryVoltage == 0) {
+      smoothBatteryVoltage = voltage;
+    } else {
+      smoothBatteryVoltage = smoothBatteryVoltage * 0.9 + voltage * 0.1;
+    }
+  }
+  return smoothBatteryVoltage;
 }
 
 int getBatteryPercentage() {
@@ -315,31 +335,25 @@ void setLeds(CRGB* leds, CRGB color) {
   }
 }
 
-unsigned long nextFlashStateChange = 0;
-boolean flashOn = false;
-
-void flashLeds(CRGB* leds, CRGB color, unsigned long intervalMsec) {
-  if (nextFlashStateChange < millis()) {
-    flashOn = !flashOn;
-    nextFlashStateChange = millis() + intervalMsec;
+void flashLeds(CRGB* leds, CRGB color, unsigned long intervalMsec, LED_STATE *ledState) {
+  if (ledState->nextSwitch < millis()) {
+    ledState->flashOn = !ledState->flashOn;
+    ledState->nextSwitch = millis() + intervalMsec;
   }
-  if (flashOn) {
+  if (ledState->flashOn) {
     setLeds(leds, color);
   } else {
     setLeds(leds, colorBlack);
   }
 }
 
-unsigned long nextLedIterate = 0;
-byte currentLed = 0;
-
-void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec) {
-  if (nextLedIterate < millis()) {
-    currentLed = (currentLed + 1) % NUM_LEDS;
-    nextLedIterate = millis() + intervalMsec;
+void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec, LED_STATE *ledState) {
+  if (ledState->nextSwitch < millis()) {
+    ledState->iterateCurrentLed = (ledState->iterateCurrentLed + 1) % NUM_LEDS;
+    ledState->nextSwitch = millis() + intervalMsec;
   }
   for (int i = 0; i < NUM_LEDS; i++) {
-    if (i == currentLed) {
+    if (i == ledState->iterateCurrentLed) {
       setLed(leds + i, color);
     } else {
       setLed(leds + i, colorBlack);
@@ -347,10 +361,10 @@ void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec) {
   }
 }
 
-void showBatteryState(CRGB* leds) {
-  if (nextFlashStateChange < millis()) {
-    flashOn = !flashOn;
-    nextFlashStateChange = millis() + 1000;
+void showBatteryState(CRGB* leds, LED_STATE *ledState) {
+  if (ledState->nextSwitch < millis()) {
+    ledState->flashOn = !ledState->flashOn;
+    ledState->nextSwitch = millis() + 1000;
   }
   int percentage = getBatteryPercentage();
   int flashingLed = min(percentage * NUM_LEDS / 100, NUM_LEDS);
@@ -358,7 +372,7 @@ void showBatteryState(CRGB* leds) {
     if (i < flashingLed) {
       setLed(leds + i, colorYellow);
     } else if (i == flashingLed) {
-      if (flashOn) {
+      if (ledState->flashOn) {
         setLed(leds + i, colorYellow);
       } else {
         setLed(leds + i, colorBlack);
@@ -380,27 +394,27 @@ void updateLeds() {
   switch(state) {
     case STATE_STARTUP:
       setLeds(ledsFront, colorBlack);
-      iterateLED(ledsBack, colorBlue, 100);
+      iterateLED(ledsBack, colorBlue, 100, ledStateBack);
       break;
     case STATE_WLAN_CONNECTED:
       setLeds(ledsFront, colorBlack);
-      iterateLED(ledsBack, colorBlue, 200);
+      iterateLED(ledsBack, colorBlue, 200, ledStateBack);
       break;
     case STATE_NOT_CONNECTED:
       setLeds(ledsFront, colorBlack);
-      flashLeds(ledsBack, colorBlue, 500);
+      flashLeds(ledsBack, colorBlue, 500, ledStateBack);
       break;
     case STATE_CONNECTING:
       setLeds(ledsFront, colorBlack);
-      iterateLED(ledsBack, colorBlue, 500);
+      iterateLED(ledsBack, colorBlue, 500, ledStateBack);
       break;
     case STATE_WLAN_CONFIGURATION:
       setLeds(ledsFront, colorBlack);
-      flashLeds(ledsBack, colorBlue, 2000);
+      flashLeds(ledsBack, colorBlue, 2000, ledStateBack);
       break;
     case STATE_PRE_RESET:
       setLeds(ledsFront, colorBlack);
-      flashLeds(ledsBack, colorRed, 50);
+      flashLeds(ledsBack, colorRed, 50, ledStateBack);
       break;
     case STATE_CONNECTED:
       switch (lightValue) {
@@ -423,13 +437,13 @@ void updateLeds() {
           break;
         default:
           setLeds(ledsFront, colorBlack);
-          flashLeds(ledsBack, colorRed, 200);
+          flashLeds(ledsBack, colorRed, 200, ledStateBack);
           break;
       }
       break;
   }
   if (millis() > 200 && isUSBPowered()) {
-    showBatteryState(ledsFront);
+    showBatteryState(ledsFront, ledStateFront);
   }
   FastLED.show();
 }
