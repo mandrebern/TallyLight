@@ -19,20 +19,24 @@ function loadState() {
 
 function loadSettings() {
     $.get( "/api/settings", function( data ) {
+        $( "#name" ).val(data["name"]);
         $( "#vmix-host" ).val(data["vmixHost"]);
         $( "#vmix-port" ).val(data["vmixPort"]);
         $( "#light-index" ).val(data["lightIndex"]);
         $( "#show-preview-on-front" ).val(data["showPreviewOnFront"]);
+        document.title = 'Tally: ' + $("#name").val();
     });
 }
 
 function save() {
     const data = {
+        name: $("#name").val(),
         vmixHost: $("#vmix-host").val(),
         vmixPort: parseInt($("#vmix-port").val()),
         lightIndex: parseInt($("#light-index").val()),
         showPreviewOnFront: $("#show-preview-on-front").is(":checked")
     };
+    document.title = 'Tally: ' + $("#name").val();
     $.ajax({
         type: "POST",
         url: "/api/settings",
@@ -46,7 +50,7 @@ function save() {
 
         error: function (jqXHR, status) {
             // error handler
-            console.log('fail' + status.code);
+            console.log('fail: ' + status.code);
         }
      });
 }

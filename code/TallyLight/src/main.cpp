@@ -23,12 +23,13 @@
 #define BUTTON_LONG_PRESS_MSEC 500
 #define BUTTON_RESET_PRESS_MSEC 10000
 
-#define EEPROM_SIZE 64
+#define EEPROM_SIZE 96
 #define EEPROM_ADDRESS_BRIGHTNESS  0 // 1 byte
 #define EEPROM_ADDRESS_LIGHT_INDEX 1 // 1 byte
 #define EEPROM_ADDRESS_VMIX_PORT   2 // 4 bytes
 #define EEPROM_ADDRESS_VMIX_HOST   8 // 56 bytes
-// #define EEPROM_ADDRESS_FREE 64  // 56 bytes
+#define EEPROM_ADDRESS_NAME       64 // 32 bytes
+// #define EEPROM_ADDRESS_FREE 96  // 56 bytes
 
 #define STATE_STARTUP 0
 #define STATE_WLAN_CONNECTED 1
@@ -54,6 +55,7 @@ struct LED_STATE {
 };
 
 // Configuration
+String name;
 String vmixHost;
 uint32_t vmixPort = 0;
 byte lightIndex = 0;
@@ -111,7 +113,7 @@ float readBatteryVoltage() {
 }
 
 int getBatteryPercentage() {
-  return (readBatteryVoltage() - 2.7) / (4.2 - 2.7) * 100.0;
+  return (readBatteryVoltage() - 2.7) / (4.15 - 2.7) * 100.0;
 }
 
 int8_t readWifiRssi() {
@@ -126,6 +128,7 @@ void writeStateToEeprom() {
   EEPROM.writeByte(EEPROM_ADDRESS_LIGHT_INDEX, lightIndex);
   EEPROM.writeUInt(EEPROM_ADDRESS_VMIX_PORT, vmixPort);
   EEPROM.writeString(EEPROM_ADDRESS_VMIX_HOST, vmixHost);
+  EEPROM.writeString(EEPROM_ADDRESS_NAME, name);
   eepromCommitDueAt = millis() + 15000;
 }
 
@@ -139,14 +142,22 @@ void loadStateFromEeprom() {
     buffer[read + 1] = 0;
     vmixHost = buffer;
   }
+  read = EEPROM.readString(EEPROM_ADDRESS_NAME, buffer, 32);
+  if (read < 32) {
+    buffer[read + 1] = 0;
+    name = buffer;
+  }
   Serial.println("Loaded from EEPROM");
   if (vmixPort > 65535) {
     Serial.println("Not yet initialized. Setting default values.");
     vmixPort = 8099;
     vmixHost = "";
+    name = "New Tally Light";
     lightIndex = 1;
     brightness = 255;
   }
+  Serial.print("Name: ");
+  Serial.println(name);
   Serial.print("VMix Port: ");
   Serial.print(vmixHost);
   Serial.print(":");
@@ -462,6 +473,7 @@ void configureRoutes(char* root) {
     server.on("/api/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
       AsyncResponseStream *response = request->beginResponseStream("application/json");
       DynamicJsonDocument doc(1000);
+      doc["name"] = name;
       doc["vmixHost"] = vmixHost;
       doc["vmixPort"] = vmixPort;
       doc["lightIndex"] = lightIndex;
@@ -483,6 +495,10 @@ void configureRoutes(char* root) {
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/api/settings", [](AsyncWebServerRequest *request, JsonVariant &json) {
       JsonObject obj = json.as<JsonObject>();
+      if (obj.containsKey("name")) {
+        const char *val = obj["name"];
+        name = val;
+      }
       if (obj.containsKey("vmixHost")) {
         const char *val = obj["vmixHost"];
         vmixHost = val;
