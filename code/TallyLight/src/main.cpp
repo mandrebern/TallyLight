@@ -612,4 +612,5 @@ void loop() {
   handleEeprom();
   handleVmix();
   handleReset();
+  readBatteryVoltage();
 }
