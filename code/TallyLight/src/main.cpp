@@ -384,6 +384,23 @@ void iterateLED(CRGB* leds, CRGB color, unsigned long intervalMsec, LED_STATE *l
   }
 }
 
+void aliveLeds(CRGB* leds, CRGB color, unsigned long intervalOnMsec, unsigned long intervalOffMsec, LED_STATE *ledState) {
+  if (ledState->nextSwitch < millis()) {
+    ledState->flashOn = !ledState->flashOn;
+    if (ledState->flashOn) {
+      ledState->nextSwitch = millis() + intervalOnMsec;
+      // Flash only inner 2 LEDs
+      setLeds(leds, colorBlack);
+      setLed(leds+3, color);
+      setLed(leds+4, color);
+    } else {
+      ledState->nextSwitch = millis() + intervalOffMsec;
+      setLeds(leds, colorBlack);
+    }
+  }
+}
+
+
 void showBatteryState(CRGB* leds, LED_STATE *ledState) {
   if (ledState->nextSwitch < millis()) {
     ledState->flashOn = !ledState->flashOn;
@@ -443,8 +460,7 @@ void updateLeds() {
       switch (lightValue) {
         case 0:
           setLeds(ledsFront, colorBlack);
-          setLeds(ledsBack, colorBlack);
-          setLed(ledsBack, colorWhite);
+          aliveLeds(ledsBack, colorWhite, 100, 10000, ledStateBack); // Indicate that the system is still on
           break;
         case 1:
           setLeds(ledsFront, colorRed);
