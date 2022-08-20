@@ -124,12 +124,12 @@ int8_t readWifiRssi() {
   return WiFi.RSSI();
 }
 
-bool isCharging() {
-  return digitalRead(CHARGING_PIN);
+bool isUSBPowered() {
+  return ( analogRead(VBUS_MON_PIN) > 2048 );
 }
 
-bool isUSBPowered() {
-  return digitalRead(VBUS_MON_PIN);
+bool isCharging() {
+  return (isUSBPowered() && !digitalRead(CHARGING_PIN));
 }
 
 void writeStateToEeprom() {
@@ -567,6 +567,9 @@ void setup() {
   // Setup button
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(VBUS_MON_PIN, INPUT);
+
+  // Setup charge pin
+  pinMode(CHARGING_PIN, INPUT_PULLUP);
 
   // Setup LED
   FastLED.addLeds<LED_TYPE, LED_PIN_FRONT, COLOR_ORDER>(ledsFront, NUM_LEDS);
