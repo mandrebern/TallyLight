@@ -11,7 +11,7 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
-#define VERSION "1.0.0"
+#define VERSION "1.0.1"
 
 #define LED_PIN_FRONT     19
 #define LED_PIN_BACK     18
@@ -26,13 +26,15 @@
 #define BUTTON_LONG_PRESS_MSEC 500
 #define BUTTON_RESET_PRESS_MSEC 10000
 
-#define EEPROM_SIZE 96
-#define EEPROM_ADDRESS_BRIGHTNESS  0 // 1 byte
-#define EEPROM_ADDRESS_LIGHT_INDEX 1 // 1 byte
-#define EEPROM_ADDRESS_VMIX_PORT   2 // 4 bytes
-#define EEPROM_ADDRESS_VMIX_HOST   8 // 56 bytes
-#define EEPROM_ADDRESS_NAME       64 // 32 bytes
-// #define EEPROM_ADDRESS_FREE 96  // 56 bytes
+#define EEPROM_SIZE 98
+#define EEPROM_ADDRESS_BRIGHTNESS    0  // 1 byte
+#define EEPROM_ADDRESS_LIGHT_INDEX   1  // 1 byte
+#define EEPROM_ADDRESS_VMIX_PORT     2  // 4 bytes
+#define EEPROM_ADDRESS_VMIX_HOST     8  // 56 bytes
+#define EEPROM_ADDRESS_NAME          64 // 32 bytes
+#define EEPROM_ADDRESS_PREVIEW_FRONT 96 // 1 byte
+#define EEPROM_ADDRESS_PREVIEW_BACK  97 // 1 byte
+// #define EEPROM_ADDRESS_FREE 98  // 54 bytes
 
 #define STATE_STARTUP 0
 #define STATE_WLAN_CONNECTED 1
@@ -66,6 +68,7 @@ byte lightIndex = 0;
 // Persistet state
 byte brightness = 255;
 bool showPreviewOnFront = false;
+bool showPreviewOnBack = true;
 
 // Temp state
 short brightnessDirection = 1;
@@ -139,7 +142,9 @@ void writeStateToEeprom() {
   EEPROM.writeUInt(EEPROM_ADDRESS_VMIX_PORT, vmixPort);
   EEPROM.writeString(EEPROM_ADDRESS_VMIX_HOST, vmixHost);
   EEPROM.writeString(EEPROM_ADDRESS_NAME, name);
-  eepromCommitDueAt = millis() + 15000;
+  EEPROM.writeByte(EEPROM_ADDRESS_PREVIEW_FRONT, showPreviewOnFront);
+  EEPROM.writeByte(EEPROM_ADDRESS_PREVIEW_BACK, showPreviewOnBack);
+  eepromCommitDueAt = millis() + 100; // Write almost immediately
 }
 
 void loadStateFromEeprom() {
@@ -157,6 +162,8 @@ void loadStateFromEeprom() {
     buffer[read + 1] = 0;
     name = buffer;
   }
+  showPreviewOnFront = EEPROM.readByte(EEPROM_ADDRESS_PREVIEW_FRONT);
+  showPreviewOnBack = EEPROM.readByte(EEPROM_ADDRESS_PREVIEW_BACK);
   Serial.println("Loaded from EEPROM");
   if (vmixPort > 65535) {
     Serial.println("Not yet initialized. Setting default values.");
@@ -165,6 +172,8 @@ void loadStateFromEeprom() {
     name = "New Tally Light";
     lightIndex = 1;
     brightness = 255;
+    showPreviewOnFront = false;
+    showPreviewOnBack = true;
   }
   Serial.print("Name: ");
   Serial.println(name);
@@ -472,7 +481,11 @@ void updateLeds() {
           } else {
             setLeds(ledsFront, colorBlack);
           }
-          setLeds(ledsBack, colorGreen);
+          if (showPreviewOnBack) {
+            setLeds(ledsBack, colorGreen);
+          } else {
+            setLeds(ledsBack, colorBlack);
+          }
           break;
         default:
           setLeds(ledsFront, colorBlack);
@@ -506,6 +519,7 @@ void configureRoutes(char* root) {
       doc["vmixPort"] = vmixPort;
       doc["lightIndex"] = lightIndex;
       doc["showPreviewOnFront"] = showPreviewOnFront;
+      doc["showPreviewOnBack"] = showPreviewOnBack;
       serializeJson(doc, *response);
       request->send(response);
     });
@@ -542,6 +556,9 @@ void configureRoutes(char* root) {
       }
       if (obj.containsKey("showPreviewOnFront")) {
         showPreviewOnFront = obj["showPreviewOnFront"];
+      }
+      if (obj.containsKey("showPreviewOnBack")) {
+        showPreviewOnBack = obj["showPreviewOnBack"];
       }
 
       state = STATE_NOT_CONNECTED;

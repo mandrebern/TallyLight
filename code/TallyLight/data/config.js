@@ -26,7 +26,8 @@ function loadSettings() {
         $( "#vmix-host" ).val(data["vmixHost"]);
         $( "#vmix-port" ).val(data["vmixPort"]);
         $( "#light-index" ).val(data["lightIndex"]);
-        $( "#show-preview-on-front" ).val(data["showPreviewOnFront"]);
+        $( "#show-preview-on-front" ).prop("checked", data["showPreviewOnFront"]);
+        $( "#show-preview-on-back" ).prop("checked", data["showPreviewOnBack"]);
         document.title = 'Tally: ' + $("#name").val();
     });
 }
@@ -37,7 +38,8 @@ function save() {
         vmixHost: $("#vmix-host").val(),
         vmixPort: parseInt($("#vmix-port").val()),
         lightIndex: parseInt($("#light-index").val()),
-        showPreviewOnFront: $("#show-preview-on-front").is(":checked")
+        showPreviewOnFront: $("#show-preview-on-front").is(":checked"),
+        showPreviewOnBack: $("#show-preview-on-back").is(":checked")
     };
     document.title = 'Tally: ' + $("#name").val();
     $.ajax({
