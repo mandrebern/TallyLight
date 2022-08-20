@@ -10,7 +10,9 @@ function loadState() {
     $.get( "/api/state", function( data ) {
         disableSendState = true;
         $( "#battery-voltage" ).text(data["batteryVoltage"].toFixed(2));
+        $( "#battery-percentage" ).text(data["batteryPercentage"]);
         $( "#usb-powered" ).text(data["usbPowered"] ? "yes" : "no");
+        $( "#is-charging" ).text(data["isCharging"] ? "yes" : "no");
         $( "#wifi-rssi" ).text(data["wifiRssi"]);
         $( "#brightness" ).slider("value", data["brightness"]);
         disableSendState = false;

@@ -18,6 +18,7 @@
 #define COLOR_ORDER GRB
 
 #define VBUS_MON_PIN 34
+#define CHARGING_PIN 13
 
 #define BUTTON_PIN  25
 #define BUTTON_LONG_PRESS_MSEC 500
@@ -73,6 +74,7 @@ int state = STATE_STARTUP;
 LED_STATE *ledStateFront = new LED_STATE();
 LED_STATE *ledStateBack = new LED_STATE();
 float smoothBatteryVoltage = 0;
+float showBatteryStateUntil = 0;
 
 // Wifi
 AsyncWiFiManager* wifiManager;
@@ -113,11 +115,17 @@ float readBatteryVoltage() {
 }
 
 int getBatteryPercentage() {
-  return (readBatteryVoltage() - 2.7) / (4.15 - 2.7) * 100.0;
+  float voltage = readBatteryVoltage();
+  double percentage = 0.4179*pow(voltage,2.0) - 2.1277*voltage + 2.7;
+  return  100.0*max(0.0, min(1.0, percentage));
 }
 
 int8_t readWifiRssi() {
   return WiFi.RSSI();
+}
+
+bool isCharging() {
+  return digitalRead(CHARGING_PIN);
 }
 
 bool isUSBPowered() {
@@ -257,6 +265,8 @@ void reset() {
 void handleButtonReleased() {
   if (state == STATE_PRE_RESET) {
     reset();
+  } else {
+    showBatteryStateUntil = millis() + 5000;
   }
 }
 
@@ -377,13 +387,13 @@ void showBatteryState(CRGB* leds, LED_STATE *ledState) {
     ledState->flashOn = !ledState->flashOn;
     ledState->nextSwitch = millis() + 1000;
   }
-  int percentage = getBatteryPercentage();
+  int percentage = isCharging() || !isUSBPowered() ? min(getBatteryPercentage(),99) : 100;
   int flashingLed = min(percentage * NUM_LEDS / 100, NUM_LEDS);
   for (int i = 0; i < NUM_LEDS; i++) {
     if (i < flashingLed) {
       setLed(leds + i, colorYellow);
     } else if (i == flashingLed) {
-      if (ledState->flashOn) {
+      if (ledState->flashOn && isCharging()) {
         setLed(leds + i, colorYellow);
       } else {
         setLed(leds + i, colorBlack);
@@ -453,7 +463,7 @@ void updateLeds() {
       }
       break;
   }
-  if (millis() > 200 && isUSBPowered()) {
+  if (millis() > 200 && (isUSBPowered() || (showBatteryStateUntil > millis()))) {
     showBatteryState(ledsFront, ledStateFront);
   }
   FastLED.show();
@@ -486,6 +496,8 @@ void configureRoutes(char* root) {
       AsyncResponseStream *response = request->beginResponseStream("application/json");
       DynamicJsonDocument doc(1000);
       doc["batteryVoltage"] = readBatteryVoltage();
+      doc["batteryPercentage"] = getBatteryPercentage();
+      doc["isCharging"] = isCharging();
       doc["usbPowered"] = isUSBPowered();
       doc["wifiRssi"] = readWifiRssi();
       doc["brightness"] = brightness;
@@ -515,7 +527,11 @@ void configureRoutes(char* root) {
 
       state = STATE_NOT_CONNECTED;
       writeStateToEeprom();
-      request->send(200, "application/json");
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument doc(100);
+      doc["success"] = true;
+      serializeJson(doc, *response);
+      request->send(response);
     }, 1000);
     server.addHandler(handler);
 
@@ -526,7 +542,11 @@ void configureRoutes(char* root) {
         writeBrightnessToEeprom();
       }
       state = STATE_NOT_CONNECTED;
-      request->send(200, "application/json");
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument doc(100);
+      doc["success"] = true;
+      serializeJson(doc, *response);
+      request->send(response);
     }, 1000);
     server.addHandler(handler);
 }
