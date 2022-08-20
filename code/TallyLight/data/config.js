@@ -15,6 +15,7 @@ function loadState() {
         $( "#is-charging" ).text(data["isCharging"] ? "yes" : "no");
         $( "#wifi-rssi" ).text(data["wifiRssi"]);
         $( "#brightness" ).slider("value", data["brightness"]);
+        $( "#appVersion" ).text(data["appVersion"]);
         disableSendState = false;
     });
 }

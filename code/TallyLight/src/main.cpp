@@ -11,6 +11,8 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
+#define VERSION "1.0.0"
+
 #define LED_PIN_FRONT     19
 #define LED_PIN_BACK     18
 #define NUM_LEDS    8
@@ -501,6 +503,7 @@ void configureRoutes(char* root) {
       doc["usbPowered"] = isUSBPowered();
       doc["wifiRssi"] = readWifiRssi();
       doc["brightness"] = brightness;
+      doc["appVersion"] = VERSION;
       serializeJson(doc, *response);
       request->send(response);
     });
