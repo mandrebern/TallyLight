@@ -12,7 +12,7 @@
 #include "ArduinoJson.h"
 #include "esp_adc_cal.h"
 
-#define VERSION "1.0.1"
+#define VERSION "1.0.2"
 
 #define LED_PIN_FRONT     19
 #define LED_PIN_BACK     18
