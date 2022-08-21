@@ -10,6 +10,7 @@
 #include "SPIFFS.h"
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
+#include "esp_adc_cal.h"
 
 #define VERSION "1.0.1"
 
@@ -21,6 +22,7 @@
 
 #define VBUS_MON_PIN 34
 #define CHARGING_PIN 13
+#define BATTERY_VOLTAGE_CHANNEL ADC1_CHANNEL_7 /* GPIO35 = CH7, see ESP32-WROVER datasheet */
 
 #define BUTTON_PIN  25
 #define BUTTON_LONG_PRESS_MSEC 500
@@ -106,10 +108,22 @@ TaskHandle_t  displayTaskHnd;
 
 unsigned long readBatteryVoltageDue = 0;
 
+// Calibration of ADC
+esp_adc_cal_characteristics_t adc_chars;
+
+
+
+float ReadCalibratedVoltage(adc1_channel_t channel)
+{
+   uint32_t reading =  adc1_get_raw(channel);
+   uint32_t voltage = esp_adc_cal_raw_to_voltage(reading, &adc_chars);
+   return ((float)voltage) / 1000.0;
+}
+
 float readBatteryVoltage() {
   if (readBatteryVoltageDue < millis()) {
     readBatteryVoltageDue = millis() + 1000;
-    float voltage = analogRead(35)/4096.0*7.18529;
+    float voltage = ReadCalibratedVoltage(BATTERY_VOLTAGE_CHANNEL) * 2.0; //Multiply by 2 because of voltage divider on board
     if (smoothBatteryVoltage == 0) {
       smoothBatteryVoltage = voltage;
     } else {
@@ -606,6 +620,12 @@ void setup() {
 
   // Setup charge pin
   pinMode(CHARGING_PIN, INPUT_PULLUP);
+
+  // ADC for Battery measurement
+  adc_power_acquire();
+  adc1_config_width(ADC_WIDTH_12Bit);
+  adc1_config_channel_atten(BATTERY_VOLTAGE_CHANNEL, ADC_ATTEN_DB_11);
+  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_12Bit, ESP_ADC_CAL_VAL_DEFAULT_VREF, &adc_chars);
 
   // Setup LED
   FastLED.addLeds<LED_TYPE, LED_PIN_FRONT, COLOR_ORDER>(ledsFront, NUM_LEDS);
