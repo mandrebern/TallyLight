@@ -53,6 +53,8 @@
 #define VMIX_TALLY_SUBSCRIBE "SUBSCRIBE TALLY\n"
 #define VMIX_TALLY_OK "TALLY OK "
 
+#define DEFAULT_VREF 1100
+
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 struct LED_STATE {
@@ -625,7 +627,7 @@ void setup() {
   adc_power_acquire();
   adc1_config_width(ADC_WIDTH_12Bit);
   adc1_config_channel_atten(BATTERY_VOLTAGE_CHANNEL, ADC_ATTEN_DB_11);
-  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_12Bit, ESP_ADC_CAL_VAL_DEFAULT_VREF, &adc_chars);
+  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_11db, ADC_WIDTH_12Bit, DEFAULT_VREF, &adc_chars);
 
   // Setup LED
   FastLED.addLeds<LED_TYPE, LED_PIN_FRONT, COLOR_ORDER>(ledsFront, NUM_LEDS);
